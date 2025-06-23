@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+venv/
+env/
+.env
+
+# Local test outputs
+exports/
+
+# Playwright browser cache
+ms-playwright/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+*.log

@@ -1,0 +1,124 @@
+import logging
+import os
+from datetime import datetime
+
+from dotenv import load_dotenv
+
+from .content_retrieval import orchestrator as content_orchestrator
+from . import generate_base_digest
+from .format_adapters import generate_email_html as email_adapter
+from .format_adapters import generate_reddit_markdown as reddit_adapter
+from .distribution import upload_to_gcs
+from .distribution import send_sendgrid_email
+from .distribution import post_to_reddit
+
+log = logging.getLogger(__name__)
+
+def run_full_digest_pipeline(
+    query_term: str,
+    days_to_look_back: int,
+    country_code: str = "",
+    language_code: str = "",
+    upload_to_gcs_enabled: bool = False,
+    send_email_enabled: bool = False,
+    post_to_reddit_enabled: bool = False,
+    recipient_emails_str: str | None = None,
+    reddit_subreddit: str | None = None,
+    reddit_flair_id: str | None = None
+) -> bool:
+    
+    log.info(f"--- Starting full digest pipeline for query: '{query_term}' ---")
+
+    articles = content_orchestrator.get_all_content_for_query(
+        query_term=query_term,
+        days_to_look_back=days_to_look_back,
+        country_code=country_code,
+        language_code=language_code
+    )
+    if not articles:
+        log.error("Content retrieval yielded no articles. Halting pipeline.")
+        return False
+
+    base_html = generate_base_digest.generate_base_html_digest(query_term, articles)
+    if not base_html:
+        log.error("Base HTML digest generation failed. Halting pipeline.")
+        return False
+    log.info("Base HTML digest generated successfully.")
+    
+    if upload_to_gcs_enabled:
+        gcs_bucket = os.getenv("GCS_BUCKET_NAME")
+        gcp_project = os.getenv("GCLOUD_PROJECT")
+        if gcs_bucket and gcp_project:
+            timestamp = datetime.now().strftime("%Y/%m/%d")
+            sanitized_query = "".join(c for c in query_term if c.isalnum()).lower()
+            filename = f"{sanitized_query}_digest_{datetime.now().strftime('%Y%m%d%H%M')}.html"
+            dest_name = f"digests/{timestamp}/{filename}"
+            upload_to_gcs.upload_content_to_gcs(base_html, dest_name, gcs_bucket, gcp_project)
+        else:
+            log.warning("GCS upload enabled, but GCS_BUCKET_NAME or GCLOUD_PROJECT missing from .env")
+
+    if send_email_enabled:
+        if not recipient_emails_str:
+            log.warning("Email sending enabled, but no recipient emails were provided.")
+        else:
+            optimised_prompt = generate_base_digest._create_digest_llm_prompt(articles)
+            if not optimised_prompt:
+                log.error("Could not generate optimised prompt for email adapter.")
+            else:
+                email_html = email_adapter.adapt_html_for_email(base_html, optimised_prompt)
+                if email_html:
+                    recipients = [e.strip() for e in recipient_emails_str.split(',') if e.strip()]
+                    subject = f"{query_term.title()} Daily Digest: {datetime.now().strftime('%B %d, %Y')}"
+                    send_sendgrid_email.send_digest_email(recipients, subject, email_html)
+                else:
+                    log.error("Failed to adapt HTML for email.")
+
+    if post_to_reddit_enabled:
+        if not reddit_subreddit:
+            log.warning("Reddit posting enabled, but no subreddit was provided.")
+        else:
+            title, markdown = reddit_adapter.adapt_html_for_reddit(base_html)
+            if title and markdown:
+                post_to_reddit.post_content_to_reddit(reddit_subreddit, title, markdown, reddit_flair_id)
+            else:
+                log.error("Failed to adapt HTML for Reddit.")
+
+    log.info(f"--- Full digest pipeline for query: '{query_term}' finished. ---")
+    return True
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s')
+    load_dotenv()
+    
+    log.info("--- Running manager.py test ---")
+
+    # --- Test Parameters ---
+    TEST_QUERY = "NBA"
+    TEST_COUNTRY = "US"
+    TEST_DAYS_BACK = 1
+    TEST_UPLOAD_GCS = True
+    TEST_SEND_EMAIL = True
+    TEST_POST_REDDIT = True
+    TEST_RECIPIENTS = "jspanom@gmail.com"
+    TEST_SUBREDDIT = "testingground4bots"
+    TEST_FLAIR_ID = None
+
+    success = run_full_digest_pipeline(
+        query_term=TEST_QUERY,
+        days_to_look_back=TEST_DAYS_BACK,
+        country_code=TEST_COUNTRY,
+        upload_to_gcs_enabled=TEST_UPLOAD_GCS,
+        send_email_enabled=TEST_SEND_EMAIL,
+        post_to_reddit_enabled=TEST_POST_REDDIT,
+        recipient_emails_str=TEST_RECIPIENTS,
+        reddit_subreddit=TEST_SUBREDDIT,
+        reddit_flair_id=TEST_FLAIR_ID
+    )
+
+    if success:
+        print("\n--- Manager Test Result: Pipeline Completed ---")
+    else:
+        print("\n--- Manager Test Result: Pipeline Failed ---")
+        print("Check logs for details on where the process was halted.")
+        
+    log.info("--- manager.py test finished ---")

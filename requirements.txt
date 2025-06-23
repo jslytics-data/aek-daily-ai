@@ -1,0 +1,12 @@
+playwright
+requests
+curl-cffi
+trafilatura
+litellm
+python-dotenv
+google-cloud-logging
+sendgrid
+google-cloud-storage>=2.14.0
+google-auth>=2.23.0
+Flask
+gunicorn
