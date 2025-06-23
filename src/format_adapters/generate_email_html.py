@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 litellm.set_verbose = False
 log = logging.getLogger(__name__)
 
+ENABLE_LLM_THINKING = True
+LLM_THINKING_BUDGET_TOKENS = 32768
+
 TEMPERATURE = 1.0
 EMAIL_ADAPTATION_PROMPT_TEMPLATE = """
 You are an expert UI/UX and Design Specialist for email newsletters.
@@ -83,9 +86,22 @@ def adapt_html_for_email(base_html_content: str, original_prompt_content: str) -
 
     messages = [{"role": "user", "content": full_prompt_for_llm}]
     
+    completion_kwargs = {
+        "model": model_string,
+        "messages": messages,
+        "temperature": TEMPERATURE,
+    }
+
+    if ENABLE_LLM_THINKING:
+        completion_kwargs["thinking"] = {
+            "type": "enabled",
+            "budget_tokens": LLM_THINKING_BUDGET_TOKENS,
+        }
+        log.info(f"LLM thinking enabled with token budget: {LLM_THINKING_BUDGET_TOKENS}")
+
     try:
         log.info(f"Requesting email-adapted HTML from LiteLLM model: {model_string}")
-        response = litellm.completion(model=model_string, messages=messages, temperature=TEMPERATURE)
+        response = litellm.completion(**completion_kwargs)
         
         if response and response.choices and response.choices[0].message and response.choices[0].message.content:
             raw_html = response.choices[0].message.content
@@ -140,7 +156,7 @@ if __name__ == "__main__":
 
         if not base_html_path or not prompt_path:
             log.error("Could not find latest base HTML and/or optimised prompt files in 'exports/'.")
-            log.error("Please run 'generate_base_digest' first.")
+            log.error("Please run 'base_digest_generator' first.")
         else:
             log.info(f"Using base HTML file: {base_html_path}")
             log.info(f"Using prompt file: {prompt_path}")

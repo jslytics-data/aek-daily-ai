@@ -81,9 +81,9 @@ def save_articles_to_json_file(
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s')
 
-    test_query_term = "ΑΕΚ"
+    test_query_term = "AEK"
     test_country_code = "GR"
-    test_days_to_look_back = 3
+    test_days_to_look_back = 2
 
     log.info("--- Running orchestrator.py test ---")
     final_results = get_all_content_for_query(

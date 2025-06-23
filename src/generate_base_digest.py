@@ -10,13 +10,15 @@ import litellm
 from dotenv import load_dotenv
 
 litellm.set_verbose = False
-
 log = logging.getLogger(__name__)
+
+ENABLE_LLM_THINKING = True
+LLM_THINKING_BUDGET_TOKENS = 32768
 
 TEMPERATURE = 1.0
 NEWSLETTER_PROMPT_GENERATION_INSTRUCTION_TEMPLATE = """
      Based on the below JSON content, generate an optimised prompt for another LLM to create an AI newsletter.
-        Fill out the info below and slightly adjust/make more specific, after studying the provided JSON metadata.
+        Fill out the info below and adjust/make more specific, after studying the provided JSON metadata.
 
         The base GUIDELINE prompt is:
         -topic title: {{generate this from json}}
@@ -29,10 +31,10 @@ NEWSLETTER_PROMPT_GENERATION_INSTRUCTION_TEMPLATE = """
         - Reference links inline wherever useful to users. Good to give credit to the journalists and platforms, but not too intrusive for our users. Prioritise linking topical and high reputable relevant sources. Try not to show sources/links from opposing sources. For example if the newsletter is about Manchester United, don’t show links from an Arsenal or London domain, unless there's clear value(e.g. tickets, fixture etc). Generally give priority to latest articles.
         - Output in nicely formatted modern HTML, like Modern Brew.
         - Follow the topic’s colors, but don't overdo it.
-        - Try to mimic the tone suggested by the article titles. Don’t be cringy. Don’t overdo with greeting. Make the tone natural as if a human topic journalist with deep knowledge and native style and tone would edit it. Do not include Emojis. Keep in mind that a portion of the audience would have already read the headlines online, so maybe include interesting details if you find them, so there's value for them as well.
-        - Enhance Readability: Ensure text is clear and concise. Vary sentence structure for natural flow, and use subheadings to break up content, making it scannable and easy to digest. Think nuance, think mastery, think art. Think of neuroscience and serotonin and dopamine.
-        - Make the UI like a world class UI designer would design it, but keep it simple.
+        - Try to mimic the tone suggested by the article titles. Don’t be cringy. Don’t overdo with greeting, you can get straight to it. Make the tone natural as if a human topic journalist with deep knowledge and native style and tone would edit it. Do not include Emojis. Keep in mind that a portion of the audience would have already read the headlines online, so maybe include interesting details if you find them, so there's value for them as well.
+        - Enhance Readability: Ensure text is clear and concise. Vary sentence structure for natural flow, and use subheadings to break up content, making it scannable and easy to digest.  Think nuance, think mastery, think art. Think of neuroscience and serotonin and dopamine.
         - Add in some magic!
+        - Make the UI like a world class UI designer would design it, but keep it simple.
         - Do not include images
 
         ONLY output the new, optimised prompt itself, NOT the JSON file content. The optimised prompt should be ready to be used by another LLM, which will be given the full article texts separately.
@@ -106,9 +108,22 @@ def _create_digest_llm_prompt(articles_metadata_list: list[dict]) -> str | None:
 
     messages = [{"role": "user", "content": full_meta_prompt}]
 
+    completion_kwargs = {
+        "model": model_string,
+        "messages": messages,
+        "temperature": TEMPERATURE,
+    }
+
+    if ENABLE_LLM_THINKING:
+        completion_kwargs["thinking"] = {
+            "type": "enabled",
+            "budget_tokens": LLM_THINKING_BUDGET_TOKENS,
+        }
+        log.info(f"LLM thinking enabled with token budget: {LLM_THINKING_BUDGET_TOKENS}")
+
     try:
         log.info(f"Requesting optimised prompt from LiteLLM model: {model_string}")
-        response = litellm.completion(model=model_string, messages=messages, temperature=TEMPERATURE)
+        response = litellm.completion(**completion_kwargs)
         if response and response.choices and response.choices[0].message and response.choices[0].message.content:
             optimised_prompt = response.choices[0].message.content.strip()
             log.info("Successfully generated optimised prompt.")
@@ -153,9 +168,22 @@ def generate_base_html_digest(query_term: str, articles_data_list: list[dict]) -
     
     messages = [{"role": "user", "content": full_user_content_for_html}]
 
+    completion_kwargs = {
+        "model": model_string,
+        "messages": messages,
+        "temperature": TEMPERATURE,
+    }
+
+    if ENABLE_LLM_THINKING:
+        completion_kwargs["thinking"] = {
+            "type": "enabled",
+            "budget_tokens": LLM_THINKING_BUDGET_TOKENS,
+        }
+        log.info(f"LLM thinking enabled with token budget: {LLM_THINKING_BUDGET_TOKENS}")
+
     try:
         log.info(f"Requesting HTML digest from LiteLLM model: {model_string}")
-        response = litellm.completion(model=model_string, messages=messages, temperature=TEMPERATURE)
+        response = litellm.completion(**completion_kwargs)
         if response and response.choices and response.choices[0].message and response.choices[0].message.content:
             raw_html = response.choices[0].message.content
             cleaned_html = _clean_llm_html_output(raw_html)
@@ -221,7 +249,7 @@ if __name__ == "__main__":
                     articles_for_digest = json.load(f)
                 
                 filename_parts = os.path.basename(input_file_path).split('_')
-                test_query_term = "Football"
+                test_query_term = "testquery"
                 if len(filename_parts) > 2 and filename_parts[0] == "orchestrated" and filename_parts[1] == "articles":
                     test_query_term = filename_parts[2]
 

@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 litellm.set_verbose = False
 log = logging.getLogger(__name__)
 
+ENABLE_LLM_THINKING = True
+LLM_THINKING_BUDGET_TOKENS = 32768
+
 TEMPERATURE = 1.0
 REDDIT_MARKDOWN_ADAPTATION_PROMPT_TEMPLATE = """
 You are an expert content adapter specializing in converting HTML newsletters to Reddit-flavored Markdown posts.
@@ -29,7 +32,7 @@ Your Task:
 
 2.  **Convert to Markdown Body:**
     *   Convert the HTML structure and content into Reddit-flavored Markdown, maintaining the original style and tone.
-    *   Use appropriate Markdown for headings (##), lists (*), links ([text](URL)), and emphasis (*italic*, **bold**).
+    *   Use appropriate Markdown for headings (##), lists (*), links ([text](URL)), and emphasis (*italic*, **bold**) etc.
     *   Use '---' for thematic breaks where appropriate.
     *   Do not include any closing disclaimer.
     *   Do not include these blacklisted words: "km, KM, κιτρινομαυρο, Στυλιανόπουλος, κμ, Στυλ, ΚΜ, Κιτρονόμαυρο, styl, kitrinomavro, Styl"
@@ -74,14 +77,23 @@ def adapt_html_for_reddit(base_html_content: str) -> tuple[str | None, str | Non
 
     messages = [{"role": "user", "content": full_prompt_for_llm}]
     
+    completion_kwargs = {
+        "model": model_string, 
+        "messages": messages, 
+        "temperature": TEMPERATURE,
+        "response_format": {"type": "json_object"}
+    }
+
+    if ENABLE_LLM_THINKING:
+        completion_kwargs["thinking"] = {
+            "type": "enabled",
+            "budget_tokens": LLM_THINKING_BUDGET_TOKENS,
+        }
+        log.info(f"LLM thinking enabled with token budget: {LLM_THINKING_BUDGET_TOKENS}")
+
     try:
         log.info(f"Requesting Reddit-adapted content from LiteLLM model: {model_string}")
-        response = litellm.completion(
-            model=model_string, 
-            messages=messages, 
-            temperature=TEMPERATURE,
-            response_format={"type": "json_object"}
-        )
+        response = litellm.completion(**completion_kwargs)
         
         if not (response and response.choices and response.choices[0].message and response.choices[0].message.content):
             log.warning("No valid content in LiteLLM response for Reddit adaptation.")
@@ -146,7 +158,7 @@ if __name__ == "__main__":
 
         if not base_html_path:
             log.error("Could not find latest base HTML file in 'exports/'.")
-            log.error("Please run 'generate_base_digest' first.")
+            log.error("Please run 'base_digest_generator' first.")
         else:
             log.info(f"Using base HTML file: {base_html_path}")
             try:
