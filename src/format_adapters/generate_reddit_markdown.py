@@ -35,6 +35,7 @@ Your Task:
     *   Use appropriate Markdown for headings (##), lists (*), links ([text](URL)), and emphasis (*italic*, **bold**) etc.
     *   Use '---' for thematic breaks where appropriate.
     *   Do not include any closing disclaimer.
+    *   Your goal here is not just to adapt the formatting to markdown. Your goal is to transform the base HTML into a native engaging reddit post. Use formatting extensively to keep things interesting.
     *   Do not include these blacklisted words: "km, KM, κιτρινομαυρο, Στυλιανόπουλος, κμ, Στυλ, ΚΜ, Κιτρονόμαυρο, styl, kitrinomavro, Styl"
 
 Output Requirements:

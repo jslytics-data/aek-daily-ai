@@ -25,6 +25,7 @@ You are provided with:
 Your Task - Design & UX Overhaul for Email:
 - Review the Base HTML and use the Original Optimised Prompt as a guide for branding and tone.
 - Transform the Base HTML into a polished, professional, and readable email newsletter.
+- Use formatting extensively to keep things interesting.
 - All styling MUST use inline CSS for maximum email client compatibility. Avoid <style> blocks.
 - Ensure the HTML structure is robust for various email clients, using tables for layout if necessary.
 - Improve typography, spacing, and visual hierarchy.
