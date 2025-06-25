@@ -14,11 +14,26 @@ from .distribution import post_to_reddit
 
 log = logging.getLogger(__name__)
 
+def _save_debug_file(content: str, query_term: str, context: str, extension: str) -> None:
+    exports_dir = "exports"
+    os.makedirs(exports_dir, exist_ok=True)
+    timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    sanitized_query = "".join(c for c in query_term if c.isalnum()).lower()
+    filename = f"{context}_{sanitized_query}_{timestamp_str}.{extension}"
+    filepath = os.path.join(exports_dir, filename)
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        log.info(f"Saved debug artifact to: {filepath}")
+    except IOError as e:
+        log.error(f"Failed to write debug file {filepath}. Error: {e}")
+
 def run_full_digest_pipeline(
     query_term: str,
     days_to_look_back: int,
-    country_code: str = "",
-    language_code: str = "",
+    language_code: str,
+    location_code: int,
+    save_intermediate_files: bool = False,
     upload_to_gcs_enabled: bool = False,
     send_email_enabled: bool = False,
     post_to_reddit_enabled: bool = False,
@@ -32,12 +47,15 @@ def run_full_digest_pipeline(
     articles = content_orchestrator.get_all_content_for_query(
         query_term=query_term,
         days_to_look_back=days_to_look_back,
-        country_code=country_code,
-        language_code=language_code
+        language_code=language_code,
+        location_code=location_code
     )
     if not articles:
         log.error("Content retrieval yielded no articles. Halting pipeline.")
         return False
+    
+    if save_intermediate_files:
+        _save_debug_file(str(articles), query_term, "manager_retrieved_articles", "json")
 
     base_html = generate_base_digest.generate_base_html_digest(query_term, articles)
     if not base_html:
@@ -45,6 +63,9 @@ def run_full_digest_pipeline(
         return False
     log.info("Base HTML digest generated successfully.")
     
+    if save_intermediate_files:
+        _save_debug_file(base_html, query_term, "manager_base_digest", "html")
+
     if upload_to_gcs_enabled:
         gcs_bucket = os.getenv("GCS_BUCKET_NAME")
         gcp_project = os.getenv("GCLOUD_PROJECT")
@@ -67,6 +88,8 @@ def run_full_digest_pipeline(
             else:
                 email_html = email_adapter.adapt_html_for_email(base_html, optimised_prompt)
                 if email_html:
+                    if save_intermediate_files:
+                        _save_debug_file(email_html, query_term, "manager_email_adapted", "html")
                     recipients = [e.strip() for e in recipient_emails_str.split(',') if e.strip()]
                     subject = f"{query_term.title()} Daily Digest: {datetime.now().strftime('%B %d, %Y')}"
                     send_sendgrid_email.send_digest_email(recipients, subject, email_html)
@@ -79,6 +102,8 @@ def run_full_digest_pipeline(
         else:
             title, markdown = reddit_adapter.adapt_html_for_reddit(base_html)
             if title and markdown:
+                if save_intermediate_files:
+                    _save_debug_file(markdown, query_term, "manager_reddit_adapted", "md")
                 post_to_reddit.post_content_to_reddit(reddit_subreddit, title, markdown, reddit_flair_id)
             else:
                 log.error("Failed to adapt HTML for Reddit.")
@@ -92,21 +117,26 @@ if __name__ == "__main__":
     
     log.info("--- Running manager.py test ---")
 
-    # --- Test Parameters ---
-    TEST_QUERY = "NBA"
-    TEST_COUNTRY = "US"
+    TEST_QUERY = "ΑΕΚ"
+    TEST_LANG_CODE = "el"
+    TEST_LOC_CODE = 2300 # Greece
     TEST_DAYS_BACK = 1
-    TEST_UPLOAD_GCS = True
-    TEST_SEND_EMAIL = True
-    TEST_POST_REDDIT = True
-    TEST_RECIPIENTS = "jspanom@gmail.com"
+    
+    TEST_SAVE_FILES = True
+    TEST_UPLOAD_GCS = False
+    TEST_SEND_EMAIL = False
+    TEST_POST_REDDIT = False
+
+    TEST_RECIPIENTS = os.getenv("TEST_RECIPIENT_EMAILS")
     TEST_SUBREDDIT = "testingground4bots"
     TEST_FLAIR_ID = None
 
     success = run_full_digest_pipeline(
         query_term=TEST_QUERY,
         days_to_look_back=TEST_DAYS_BACK,
-        country_code=TEST_COUNTRY,
+        language_code=TEST_LANG_CODE,
+        location_code=TEST_LOC_CODE,
+        save_intermediate_files=TEST_SAVE_FILES,
         upload_to_gcs_enabled=TEST_UPLOAD_GCS,
         send_email_enabled=TEST_SEND_EMAIL,
         post_to_reddit_enabled=TEST_POST_REDDIT,

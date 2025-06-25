@@ -14,11 +14,11 @@ log = logging.getLogger(__name__)
 
 ENABLE_LLM_THINKING = True
 LLM_THINKING_BUDGET_TOKENS = 32768
-
 TEMPERATURE = 1.0
+
 NEWSLETTER_PROMPT_GENERATION_INSTRUCTION_TEMPLATE = """
      Based on the below JSON content, generate an optimised prompt for another LLM to create an AI newsletter.
-        Fill out the info below and adjust/make more specific, after studying the provided JSON metadata.
+        Fill out the info below after studying the provided JSON. Don't alter it a lot, I want this to be the prompt, just very slightly adjusted based on the content at hand. Alter only if you think its absolutely critical.
 
         The base GUIDELINE prompt is:
         -topic title: {{generate this from json}}
@@ -67,22 +67,15 @@ def _clean_llm_html_output(raw_html_text: str) -> str | None:
         return cleaned_text if cleaned_text.startswith("<") and cleaned_text.endswith(">") else None
     
     start_index = start_match.start()
-    last_end_tag_index = -1
-    for match in re.finditer(re.escape("</html>"), cleaned_text, re.IGNORECASE):
-        last_end_tag_index = match.end()
-    
-    if last_end_tag_index == -1 or last_end_tag_index <= start_index:
+    last_end_tag_index = cleaned_text.rfind("</html>")
+    if last_end_tag_index == -1:
         log.warning("Could not find standard HTML end or it's malformed.")
-        return cleaned_text[start_index:].strip() if cleaned_text[start_index:].strip().endswith(">") else None
+        return cleaned_text[start_index:].strip()
         
-    return cleaned_text[start_index:last_end_tag_index].strip()
+    return cleaned_text[start_index : last_end_tag_index + len("</html>")].strip()
 
 def _create_digest_llm_prompt(articles_metadata_list: list[dict]) -> str | None:
     log.info(f"Creating digest LLM prompt for {len(articles_metadata_list)} articles.")
-    if not os.getenv("GEMINI_API_KEY"):
-        log.error("GEMINI_API_KEY not found in environment for LiteLLM prompt generation.")
-        return None
-    
     model_string = os.getenv("LITELLM_MODEL_STRING")
     if not model_string:
         log.error("LITELLM_MODEL_STRING not found in environment.")
@@ -103,22 +96,12 @@ def _create_digest_llm_prompt(articles_metadata_list: list[dict]) -> str | None:
 
     formatted_today = _get_formatted_today_date()
     instruction = NEWSLETTER_PROMPT_GENERATION_INSTRUCTION_TEMPLATE.format(formatted_today_date=formatted_today)
-    prompt_data_block = f"JSON Article Metadata:\n```json\n{articles_json_string}\n```"
-    full_meta_prompt = f"{instruction}\n\n{prompt_data_block}"
-
+    full_meta_prompt = f"{instruction}\n\nJSON Article Metadata:\n```json\n{articles_json_string}\n```"
     messages = [{"role": "user", "content": full_meta_prompt}]
 
-    completion_kwargs = {
-        "model": model_string,
-        "messages": messages,
-        "temperature": TEMPERATURE,
-    }
-
+    completion_kwargs = {"model": model_string, "messages": messages, "temperature": TEMPERATURE}
     if ENABLE_LLM_THINKING:
-        completion_kwargs["thinking"] = {
-            "type": "enabled",
-            "budget_tokens": LLM_THINKING_BUDGET_TOKENS,
-        }
+        completion_kwargs["thinking"] = {"type": "enabled", "budget_tokens": LLM_THINKING_BUDGET_TOKENS}
         log.info(f"LLM thinking enabled with token budget: {LLM_THINKING_BUDGET_TOKENS}")
 
     try:
@@ -136,11 +119,6 @@ def _create_digest_llm_prompt(articles_metadata_list: list[dict]) -> str | None:
 
 def generate_base_html_digest(query_term: str, articles_data_list: list[dict]) -> str | None:
     log.info(f"Generating base HTML digest for query: '{query_term}' with {len(articles_data_list)} articles.")
-
-    if not os.getenv("GEMINI_API_KEY"):
-        log.error("GEMINI_API_KEY not found in environment for LiteLLM HTML generation.")
-        return None
-        
     model_string = os.getenv("LITELLM_MODEL_STRING")
     if not model_string:
         log.error("LITELLM_MODEL_STRING not found in environment.")
@@ -156,29 +134,13 @@ def generate_base_html_digest(query_term: str, articles_data_list: list[dict]) -
         return None
 
     final_user_prompt = optimised_prompt + HTML_FULL_DOCUMENT_ONLY_INSTRUCTION
-    
-    try:
-        articles_json_content_string = json.dumps(articles_data_list, indent=2, ensure_ascii=False)
-    except Exception as e:
-        log.error(f"Error serializing full articles data to JSON: {e}", exc_info=True)
-        return None
-    
-    prompt_data_block = f"\n\nAttached JSON Data (articles with full text):\n```json\n{articles_json_content_string}\n```"
-    full_user_content_for_html = f"{final_user_prompt}\n{prompt_data_block}"
-    
+    articles_json_content_string = json.dumps(articles_data_list, indent=2, ensure_ascii=False)
+    full_user_content_for_html = f"{final_user_prompt}\n\nAttached JSON Data (articles with full text):\n```json\n{articles_json_content_string}\n```"
     messages = [{"role": "user", "content": full_user_content_for_html}]
 
-    completion_kwargs = {
-        "model": model_string,
-        "messages": messages,
-        "temperature": TEMPERATURE,
-    }
-
+    completion_kwargs = {"model": model_string, "messages": messages, "temperature": TEMPERATURE}
     if ENABLE_LLM_THINKING:
-        completion_kwargs["thinking"] = {
-            "type": "enabled",
-            "budget_tokens": LLM_THINKING_BUDGET_TOKENS,
-        }
+        completion_kwargs["thinking"] = {"type": "enabled", "budget_tokens": LLM_THINKING_BUDGET_TOKENS}
         log.info(f"LLM thinking enabled with token budget: {LLM_THINKING_BUDGET_TOKENS}")
 
     try:
@@ -226,15 +188,12 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - [%(name)s] - %(message)s')
     logging.getLogger("httpx").setLevel(logging.WARNING)
-    
     load_dotenv()
 
-    log.info("--- Running base_digest_generator.py test ---")
+    log.info("--- Running generate_base_digest.py test ---")
 
-    if not os.getenv("GEMINI_API_KEY"):
-        log.critical("GEMINI_API_KEY not found in .env. Test cannot run.")
-    elif not os.getenv("LITELLM_MODEL_STRING"):
-        log.critical("LITELLM_MODEL_STRING not found in .env. Test cannot run.")
+    if not os.getenv("GEMINI_API_KEY") or not os.getenv("LITELLM_MODEL_STRING"):
+        log.critical("GEMINI_API_KEY or LITELLM_MODEL_STRING not in .env. Test cannot run.")
     else:
         exports_directory = "exports"
         input_file_path = find_latest_input_file(exports_directory, "orchestrated_articles")
@@ -280,4 +239,4 @@ if __name__ == "__main__":
             except Exception as e:
                 log.error(f"Error during CLI test execution: {e}", exc_info=True)
 
-    log.info("--- base_digest_generator.py test finished ---")
+    log.info("--- generate_base_digest.py test finished ---")

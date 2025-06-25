@@ -1,6 +1,7 @@
 cd topical-ai
 pip install -r requirements.txt
 python -m src.content_retrieval.orchestrator
+python -m src.content_retrieval.fetch_and_parse_dataforseo
 python -m src.content_retrieval.fetch_google_news_rss
 python -m src.content_retrieval.resolve_google_news_urls
 python -m src.content_retrieval.extract_article_content
@@ -13,4 +14,3 @@ python -m src.distribution.send_sendgrid_email
 python -m src.distribution.upload_to_gcs
 python -m src.manager
 python main.py
-flask --app main run

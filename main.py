@@ -43,14 +43,16 @@ def run_digest_endpoint():
         return jsonify({"status": "error", "message": "Invalid JSON payload."}), 400
 
     query_term = request_data.get("query_term")
-    if not query_term:
-        return jsonify({"status": "error", "message": "Missing required field: query_term."}), 400
+    language_code = request_data.get("language_code")
+    location_code = request_data.get("location_code")
+
+    if not all([query_term, language_code, location_code]):
+        msg = "Missing one or more required fields: query_term, language_code, location_code."
+        return jsonify({"status": "error", "message": msg}), 400
 
     days_to_look_back = request_data.get("days_to_look_back", 1)
-    country_code = request_data.get("country_code", "")
-    language_code = request_data.get("language_code", "")
-
     distribution_options = request_data.get("distribution", {})
+    
     upload_gcs = distribution_options.get("gcs", {}).get("enabled", False)
     send_email = distribution_options.get("email", {}).get("enabled", False)
     post_reddit = distribution_options.get("reddit", {}).get("enabled", False)
@@ -65,8 +67,9 @@ def run_digest_endpoint():
         success = manager.run_full_digest_pipeline(
             query_term=query_term,
             days_to_look_back=days_to_look_back,
-            country_code=country_code,
             language_code=language_code,
+            location_code=location_code,
+            save_intermediate_files=False, # Set to False for production runs
             upload_to_gcs_enabled=upload_gcs,
             send_email_enabled=send_email,
             post_to_reddit_enabled=post_reddit,
