@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 from .content_retrieval import orchestrator as content_orchestrator
 from . import generate_base_digest
+from .format_adapters import generate_email_metas
 from .format_adapters import generate_reddit_markdown as reddit_adapter
 from .distribution import upload_to_gcs
 from .distribution import send_sendgrid_email
@@ -38,7 +39,8 @@ def run_full_digest_pipeline(
     post_to_reddit_enabled: bool = False,
     recipient_emails_str: str | None = None,
     reddit_subreddit: str | None = None,
-    reddit_flair_id: str | None = None
+    reddit_flair_id: str | None = None,
+    from_name_template: str | None = None
 ) -> bool:
     
     log.info(f"--- Starting full digest pipeline for query: '{query_term}' ---")
@@ -54,7 +56,8 @@ def run_full_digest_pipeline(
         return False
     
     if save_intermediate_files:
-        _save_debug_file(str(articles), query_term, "manager_retrieved_articles", "json")
+        import json
+        _save_debug_file(json.dumps(articles, indent=2, ensure_ascii=False), query_term, "manager_retrieved_articles", "json")
 
     base_html = generate_base_digest.generate_base_html_digest(query_term, articles)
     if not base_html:
@@ -81,10 +84,26 @@ def run_full_digest_pipeline(
         if not recipient_emails_str:
             log.warning("Email sending enabled, but no recipient emails were provided.")
         else:
-            recipients = [e.strip() for e in recipient_emails_str.split(',') if e.strip()]
-            subject = f"{query_term.title()} Daily Digest: {datetime.now().strftime('%B %d, %Y')}"
-            log.info(f"Proceeding to send email with subject: '{subject}'")
-            send_sendgrid_email.send_digest_email(recipients, subject, base_html)
+            log.info("Generating dynamic email subject and preview text.")
+            email_metas = generate_email_metas.generate_email_metadata_from_html(base_html)
+
+            if email_metas:
+                recipients = [e.strip() for e in recipient_emails_str.split(',') if e.strip()]
+                subject = email_metas["subject_line"]
+                preview_text = email_metas["preview_text"]
+                
+                from_name = from_name_template.format(query_term=query_term.title()) if from_name_template else f"{query_term.title()} Daily"
+                
+                log.info(f"Proceeding to send email from '{from_name}'")
+                send_sendgrid_email.send_digest_email(
+                    recipient_emails=recipients,
+                    subject=subject,
+                    html_content=base_html,
+                    from_name=from_name,
+                    preview_text=preview_text
+                )
+            else:
+                log.error("Failed to generate email metadata. Skipping email dispatch.")
 
     if post_to_reddit_enabled:
         if not reddit_subreddit:
@@ -107,7 +126,7 @@ if __name__ == "__main__":
     
     log.info("--- Running manager.py test ---")
 
-    TEST_QUERY = "ΑΕΚ"
+    TEST_QUERY = "Μπάσκετ"
     TEST_LANG_CODE = "el"
     TEST_LOC_CODE = 2300 
     TEST_DAYS_BACK = 1
@@ -120,6 +139,7 @@ if __name__ == "__main__":
     TEST_RECIPIENTS = os.getenv("TEST_RECIPIENT_EMAILS")
     TEST_SUBREDDIT = "testingground4bots"
     TEST_FLAIR_ID = None
+    TEST_FROM_NAME_TEMPLATE = "{query_term} Today"
 
     success = run_full_digest_pipeline(
         query_term=TEST_QUERY,
@@ -132,7 +152,8 @@ if __name__ == "__main__":
         post_to_reddit_enabled=TEST_POST_REDDIT,
         recipient_emails_str=TEST_RECIPIENTS,
         reddit_subreddit=TEST_SUBREDDIT,
-        reddit_flair_id=TEST_FLAIR_ID
+        reddit_flair_id=TEST_FLAIR_ID,
+        from_name_template=TEST_FROM_NAME_TEMPLATE
     )
 
     if success:
