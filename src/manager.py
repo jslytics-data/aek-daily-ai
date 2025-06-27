@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 
 from .content_retrieval import orchestrator as content_orchestrator
 from . import generate_base_digest
-from .format_adapters import generate_email_html as email_adapter
 from .format_adapters import generate_reddit_markdown as reddit_adapter
 from .distribution import upload_to_gcs
 from .distribution import send_sendgrid_email
@@ -76,25 +75,16 @@ def run_full_digest_pipeline(
             dest_name = f"digests/{timestamp}/{filename}"
             upload_to_gcs.upload_content_to_gcs(base_html, dest_name, gcs_bucket, gcp_project)
         else:
-            log.warning("GCS upload enabled, but GCS_BUCKET_NAME or GCLOUD_PROJECT missing from .env")
+            log.warning("GCS upload enabled, but GCS_BUCKET_NAME or GCLOUD_PROJECT missing")
 
     if send_email_enabled:
         if not recipient_emails_str:
             log.warning("Email sending enabled, but no recipient emails were provided.")
         else:
-            optimised_prompt = generate_base_digest._create_digest_llm_prompt(articles)
-            if not optimised_prompt:
-                log.error("Could not generate optimised prompt for email adapter.")
-            else:
-                email_html = email_adapter.adapt_html_for_email(base_html, optimised_prompt)
-                if email_html:
-                    if save_intermediate_files:
-                        _save_debug_file(email_html, query_term, "manager_email_adapted", "html")
-                    recipients = [e.strip() for e in recipient_emails_str.split(',') if e.strip()]
-                    subject = f"{query_term.title()} Daily Digest: {datetime.now().strftime('%B %d, %Y')}"
-                    send_sendgrid_email.send_digest_email(recipients, subject, email_html)
-                else:
-                    log.error("Failed to adapt HTML for email.")
+            recipients = [e.strip() for e in recipient_emails_str.split(',') if e.strip()]
+            subject = f"{query_term.title()} Daily Digest: {datetime.now().strftime('%B %d, %Y')}"
+            log.info(f"Proceeding to send email with subject: '{subject}'")
+            send_sendgrid_email.send_digest_email(recipients, subject, base_html)
 
     if post_to_reddit_enabled:
         if not reddit_subreddit:
@@ -119,12 +109,12 @@ if __name__ == "__main__":
 
     TEST_QUERY = "ΑΕΚ"
     TEST_LANG_CODE = "el"
-    TEST_LOC_CODE = 2300 # Greece
+    TEST_LOC_CODE = 2300 
     TEST_DAYS_BACK = 1
     
     TEST_SAVE_FILES = True
-    TEST_UPLOAD_GCS = False
-    TEST_SEND_EMAIL = False
+    TEST_UPLOAD_GCS = True
+    TEST_SEND_EMAIL = True
     TEST_POST_REDDIT = False
 
     TEST_RECIPIENTS = os.getenv("TEST_RECIPIENT_EMAILS")
