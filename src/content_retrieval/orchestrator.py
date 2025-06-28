@@ -87,7 +87,7 @@ if __name__ == "__main__":
     test_query_term = "ΑΕΚ"
     test_language_code = "el"
     test_location_code = 2300  # DataForSEO location code for Greece
-    test_days_to_look_back = 1
+    test_days_to_look_back = 2
 
     log.info("--- Running orchestrator.py test (DataForSEO) ---")
 

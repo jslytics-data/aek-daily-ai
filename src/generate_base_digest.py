@@ -32,9 +32,9 @@ NEWSLETTER_PROMPT_GENERATION_INSTRUCTION_TEMPLATE = """
         - Output in nicely formatted modern email HTML, like Modern Brew. Make sure its mobile friendly. For mobile views, IMPORTANT: MINIMISE side margin so to maximise text space.
         - Follow the topic’s colors, but don't overdo it.
         - Try to mimic the tone suggested by the article titles. Don’t be cringy. For example saying "Καλημέρα Βόλο" is cringy and unnatural. Don’t overdo with greeting, you can get straight to it. Make the tone natural as if a human topic journalist with deep knowledge and native style and tone would edit it. If you really think it helps, use Emoji's but don't overdo it. Keep in mind that a portion of the audience would have already read the headlines online, so maybe include interesting details if you find them, so there's value for them as well.
-        - Enhance Readability: Ensure text is clear and concise. Vary sentence structure for natural flow, and use subheadings to break up content, making it scannable and easy to digest. Think nuance, think of neuroscience and serotonin and dopamine. Use formatting extensively to improve readability.
-        - If you think it would be nice, you can have a "quick summary" type of section at the beginning
-        - Make the UI like a world class UI designer would design it, but keep it simple. Add in some magic!
+        - Enhance Readability: Ensure text is clear and concise. Vary sentence structure for natural flow. Think nuance, think of neuroscience and serotonin and dopamine. Use formatting extensively to improve readability.
+        - If you think there's enough content to justify, you can create a "highlights" type of section at the beginning. You can use the word "Highlights" in any source language, its a universaly recognised and understood word.
+        - Make the UI like a world class UI designer would design it, but keep it simple. Add in some magic! Generally avoid dark backgrounds, because sometimes combined with dark fonts makes it really hard to read.
         - Do not include images
 
         ONLY output the new, optimised prompt itself, NOT the JSON file content. The optimised prompt should be ready to be used by another LLM, which will be given the full article texts separately.

@@ -126,14 +126,14 @@ if __name__ == "__main__":
     
     log.info("--- Running manager.py test ---")
 
-    TEST_QUERY = "Μπάσκετ"
+    TEST_QUERY = "ΑΕΚ"
     TEST_LANG_CODE = "el"
     TEST_LOC_CODE = 2300 
-    TEST_DAYS_BACK = 1
+    TEST_DAYS_BACK = 2
     
     TEST_SAVE_FILES = True
-    TEST_UPLOAD_GCS = True
-    TEST_SEND_EMAIL = True
+    TEST_UPLOAD_GCS = False
+    TEST_SEND_EMAIL = False
     TEST_POST_REDDIT = False
 
     TEST_RECIPIENTS = os.getenv("TEST_RECIPIENT_EMAILS")
