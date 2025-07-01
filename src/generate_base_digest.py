@@ -34,6 +34,7 @@ NEWSLETTER_PROMPT_GENERATION_INSTRUCTION_TEMPLATE = """
         - Try to mimic the tone suggested by the article titles. Don’t be cringy. For example saying "Καλημέρα Βόλο" is cringy and unnatural. Don’t overdo with greeting, you can get straight to it. Make the tone natural as if a human topic journalist with deep knowledge and native style and tone would edit it. If you really think it helps, use Emoji's but don't overdo it. Keep in mind that a portion of the audience would have already read the headlines online, so maybe include interesting details if you find them, so there's value for them as well.
         - Enhance Readability: Ensure text is clear and concise. Vary sentence structure for natural flow. Think nuance, think of neuroscience and serotonin and dopamine. Use formatting extensively to improve readability.
         - If you think there's enough content to justify, you can create a "highlights" type of section at the beginning. You can use the word "Highlights" in any source language, its a universaly recognised and understood word.
+        - The content should also be able to be read hapily by novices, so adapt context if needed to support this.
         - Make the UI like a world class UI designer would design it, but keep it simple. Add in some magic! Generally avoid dark backgrounds, because sometimes combined with dark fonts makes it really hard to read.
         - Do not include images
 
