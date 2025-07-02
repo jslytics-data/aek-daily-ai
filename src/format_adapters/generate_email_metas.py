@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 litellm.set_verbose = False
 log = logging.getLogger(__name__)
 
-TEMPERATURE = 0.8
+TEMPERATURE = 1
 EMAIL_METAS_PROMPT_TEMPLATE = """
 You are an expert email marketer and copywriter with a style similar to Morning Brew. Your goal is to maximize open rates.
 You will be given the full HTML content of a newsletter.

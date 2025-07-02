@@ -133,7 +133,7 @@ if __name__ == "__main__":
     
     TEST_SAVE_FILES = True
     TEST_UPLOAD_GCS = False
-    TEST_SEND_EMAIL = False
+    TEST_SEND_EMAIL = True
     TEST_POST_REDDIT = False
 
     TEST_RECIPIENTS = os.getenv("TEST_RECIPIENT_EMAILS")
