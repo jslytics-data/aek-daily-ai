@@ -132,7 +132,7 @@ if __name__ == "__main__":
     TEST_DAYS_BACK = 2
     
     TEST_SAVE_FILES = True
-    TEST_UPLOAD_GCS = False
+    TEST_UPLOAD_GCS = True
     TEST_SEND_EMAIL = True
     TEST_POST_REDDIT = False
 
