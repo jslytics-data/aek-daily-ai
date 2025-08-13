@@ -134,7 +134,7 @@ if __name__ == "__main__":
     TEST_SAVE_FILES = True
     TEST_UPLOAD_GCS = True
     TEST_SEND_EMAIL = True
-    TEST_POST_REDDIT = False
+    TEST_POST_REDDITse
 
     TEST_RECIPIENTS = os.getenv("TEST_RECIPIENT_EMAILS")
     TEST_SUBREDDIT = "testingground4bots"

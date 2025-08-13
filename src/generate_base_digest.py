@@ -38,6 +38,7 @@ NEWSLETTER_PROMPT_GENERATION_INSTRUCTION_TEMPLATE = """
         - The content should also be able to be read hapily by novices, so adapt context if needed to support this.
         - Make the UI like a world class UI designer would design it, but keep it simple. Add in some magic! Generally avoid dark backgrounds, because sometimes combined with dark fonts makes it really hard to read.
         - Do not include images
+        - Override above: I want to test leaning much more into the sarcasm mode.
 
         ONLY output the new, optimised prompt itself, NOT the JSON file content. The optimised prompt should be ready to be used by another LLM, which will be given the full article texts separately.
     """
