@@ -20,22 +20,16 @@ def _filter_articles_by_recency(articles: list[dict], days_to_look_back: int) ->
 
     for article in articles:
         pub_date_str = article.get("publication_date")
-
         if not pub_date_str:
-            log.info(f"Passing article with null publication_date: {article.get('title', 'N/A')[:50]}...")
-            filtered_list.append(article)
+            log.warning(f"Skipping article with null publication_date: {article.get('title', 'N/A')[:50]}...")
             continue
-        
         try:
+            # Assumes timestamp is in "YYYY-MM-DD HH:MM:SS +00:00" format
             article_pub_date = datetime.fromisoformat(pub_date_str.replace(" +00:00", "+00:00")).date()
             if article_pub_date >= start_date_utc:
                 filtered_list.append(article)
-            else:
-                log.info(f"Skipping verifiably old article: {article.get('title', 'N/A')[:50]}...")
-        
         except (ValueError, TypeError) as e:
-            log.warning(f"Could not parse publication_date '{pub_date_str}': {e}. Passing article.")
-            filtered_list.append(article)
+            log.warning(f"Could not parse publication_date '{pub_date_str}': {e}. Skipping article.")
             continue
     
     log.info(f"Filtered {len(articles)} down to {len(filtered_list)} articles.")
