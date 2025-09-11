@@ -25,9 +25,9 @@ You are provided with the Base HTML Newsletter Content.
 Your Task:
 
 1.  **Extract and Format the Reddit Title:**
-    *   From the Base HTML, identify the newsletter's main topic or name (e.g., "AEK Daily", "Tech Weekly").
+    *   From the Base HTML, identify the newsletter's main topic or name (e.g., "AEK Daily").
     *   From the Base HTML, identify the full publication date of the newsletter (e.g., "Τετάρτη, 11 Ιουνίου 2025").
-    *   Construct the Reddit post title using EXACTLY this format: "{Identified Topic/Name}: {Extracted Full Date}".
+    *   Construct the Reddit post title using this format: "{Identified Name}: {Extracted Full Date} | {Short Title from Context}".
     *   Ensure the language of the title matches the primary language used in the Base HTML content.
 
 2.  **Convert to Markdown Body:**
@@ -35,7 +35,7 @@ Your Task:
     *   Use appropriate Markdown for headings (##), lists (*), links ([text](URL)), and emphasis (*italic*, **bold**) etc.
     *   Use '---' for thematic breaks where appropriate.
     *   Do not include any closing disclaimer.
-    *   Do not over-do it with cringy greetings, like "καλημερα Βολο!". If there's enough content you can include a "today's highlights" section at the top. You can use the word "Highlights" in any source language, its a universaly recognised and understood word.
+    *   Do not over-do it with cringy greetings, like "καλημερα Βολο!". If there's enough content you can include a "today's highlights" bullet pooint section at the top. You can use the word "Highlights" in any source language, its a universaly recognised and understood word.
     *   Your goal here is not just to adapt the formatting to markdown. Your goal is to transform the base HTML into a native engaging reddit post. Use formatting extensively to keep things interesting.
     *   If source language is not english, output the full post in the source language. But below that, add a thematic break and then an english version. Will be in the same post.
     *   Do not include these blacklisted words: "km, KM, κιτρινομαυρο, Στυλιανόπουλος, κμ, Στυλ, ΚΜ, Κιτρονόμαυρο, styl, kitrinomavro, Styl"
