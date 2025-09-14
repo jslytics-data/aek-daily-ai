@@ -27,7 +27,7 @@ Your Task:
 1.  **Extract and Format the Reddit Title:**
     *   From the Base HTML, identify the newsletter's main topic or name (e.g., "AEK Daily").
     *   From the Base HTML, identify the full publication date of the newsletter (e.g., "Τετάρτη, 11 Ιουνίου 2025").
-    *   Construct the Reddit post title using this format: "{Identified Name}: {Extracted Full Date} | {Short Title from Context}".
+    *   Construct the Reddit post title using this format: "{Extracted Full Date} | {Short Title from Context}".
     *   Ensure the language of the title matches the primary language used in the Base HTML content.
 
 2.  **Convert to Markdown Body:**
@@ -39,6 +39,7 @@ Your Task:
     *   Your goal here is not just to adapt the formatting to markdown. Your goal is to transform the base HTML into a native engaging reddit post. Use formatting extensively to keep things interesting.
     *   If source language is not english, output the full post in the source language. But below that, add a thematic break and then an english version. Will be in the same post.
     *   Do not include these blacklisted words: "km, KM, κιτρινομαυρο, Στυλιανόπουλος, κμ, Στυλ, ΚΜ, Κιτρονόμαυρο, styl, kitrinomavro, Styl"
+    *   Small adaptation - if the original HTML is a bit too disrespectful to ex players or staf, tone that down. There was an edition which made fun of an ex-coach losing a few games in a row, which is not nice.
 
 Output Requirements:
 You will provide your response in a structured JSON format. The JSON object must have two fields:
