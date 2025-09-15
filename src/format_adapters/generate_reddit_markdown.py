@@ -25,9 +25,8 @@ You are provided with the Base HTML Newsletter Content.
 Your Task:
 
 1.  **Extract and Format the Reddit Title:**
-    *   From the Base HTML, identify the newsletter's main topic or name (e.g., "AEK Daily").
     *   From the Base HTML, identify the publication date of the newsletter (e.g., "Τετάρτη, 11/06/25").
-    *   Construct the Reddit post title using this format: "{Pub Date} | {Short Title from Context}".
+    *   Construct the Reddit post title using this format: "{Pub Date} : {Generated Title from Context}".
     *   Ensure the language of the title matches the primary language used in the Base HTML content.
 
 2.  **Convert to Markdown Body:**
