@@ -16,35 +16,23 @@ ENABLE_LLM_THINKING = True
 LLM_THINKING_BUDGET_TOKENS = 32768
 TEMPERATURE = 1.0
 
-NEWSLETTER_PROMPT_GENERATION_INSTRUCTION_TEMPLATE = """
-     Based on the below JSON content, generate an optimised prompt for another LLM to create an AI newsletter.
-        Fill out the info below after studying the provided JSON. Don't alter it a lot, I want this to be the prompt, just very slightly adjusted based on the content at hand. Alter only if you think its absolutely critical.
+AEK_NEWSLETTER_HTML_PROMPT = """
+You are an expert content creator specializing in sports journalism, with a deep focus on AEK Athens. Your style is similar to Morning Brew - witty, engaging, and insightful.
 
-        The base GUIDELINE prompt is:
-        -topic title: {{generate this from json}}
-        -topic description: {{generate this from json}}
-        - Based on the attached articles' metadata, I want you to create a daily newsletter page for today, {formatted_today_date}.
-        - Should be similar style to Morning Brew.
-        - The name is "{{{{topic}}}} Daily" ("Daily" should be like this in English, even if language is other. So for example, it shoulbe "Χίος Daily")
-        - Output content in source language of the provided article titles.
-        - Exclude articles not related to {{{{topic}}}}. Careful to only focus on the topic.
-        - Reference links inline wherever useful to users. Good to give credit to the journalists and platforms, but not too intrusive for our users. Prioritise linking topical and high reputable relevant sources. Try not to show sources/links from opposing sources. For example if the newsletter is about Manchester United, don’t show links from an Arsenal or London domain, unless there's clear value(e.g. tickets, fixture etc). Generally give priority to latest articles.
-        - Output in nicely formatted modern email HTML, like Modern Brew. Make sure its mobile friendly. For mobile views, IMPORTANT: MINIMISE side margin so to maximise text space.
-        - Follow the topic’s colors, but don't overdo it.
-        - Try to mimic the tone suggested by the article titles. Don’t be cringy. For example saying "Καλημέρα Βόλο" is cringy and unnatural. Don’t overdo with greeting, you can get straight to it. Make the tone natural as if a human topic journalist with deep knowledge and native style and tone would edit it. If you really think it helps, use Emoji's but don't overdo it. Keep in mind that a portion of the audience would have already read the headlines online, so maybe include interesting details if you find them, so there's value for them as well.
-        - Enhance Readability: Ensure text is clear and concise. Vary sentence structure for natural flow. Think nuance, think of neuroscience and serotonin and dopamine. Use formatting extensively to improve readability.
-        - In sections where it might be relevant, add a slight undertone of sarcasm. But keep it natural, don't try too hard.
-        - If you think there's enough content to justify, you can create a "highlights" type of section at the beginning. You can use the word "Highlights" in any source language, its a universaly recognised and understood word.
-        - The content should also be able to be read hapily by novices, so adapt context if needed to support this.
-        - Make the UI like a world class UI designer would design it, but keep it simple. Add in some magic! Generally avoid dark backgrounds, because sometimes combined with dark fonts makes it really hard to read.
-        - Do not include images
-        - Override above: I want to test leaning much more into the sarcasm mode.
+Your task is to create a daily Email newsletter in email HTML format for today, {formatted_today_date}, based on the provided JSON data of recent news articles.
 
-        ONLY output the new, optimised prompt itself, NOT the JSON file content. The optimised prompt should be ready to be used by another LLM, which will be given the full article texts separately.
-    """
+Key Instructions:
+- **Output Language:** The newsletter must be in Greek (el).
+- **Newsletter Name:** The name is "AEK Daily".
+- **Tone & Style:** Maintain a natural, knowledgeable, and slightly sarcastic tone. Avoid cringy greetings. The tone should be that of a dedicated fan and deep knowledge journalist who has read all the news. Use emojis sparingly and only where they add value.
+- **Content Focus:** Focus exclusively on AEK. Exclude or downplay tangentially related news.
+- **Readability:** Use formatting (headings, lists, bold text) extensively to enhance readability. Vary sentence structure for a natural flow. Ensure the content is accessible to both die-hard fans and casual readers.
+- **HTML Format:** Output a complete, mobile-friendly email HTML document. Minimize side margins to maximize text space on mobile devices. Use beautifyl, simple, clean design and avoid dark backgrounds. Do not include images.
+- **Structure:** If there is enough content, start with a "Highlights" bullet-point section. This is great for grabbing attention. You can use the word "Highlights", its universally understood.
+- **Sourcing:** Reference sources by linking inline where appropriate, giving credit to the original journalists. Prioritize reputable and team-friendly sources.
+"""
 
 HTML_FULL_DOCUMENT_ONLY_INSTRUCTION = """
-
 IMPORTANT: Your output MUST be ONLY a single, complete HTML document.
 Do NOT include any additional text, explanations, or comments outside of the HTML code itself.
 """
@@ -77,49 +65,6 @@ def _clean_llm_html_output(raw_html_text: str) -> str | None:
         
     return cleaned_text[start_index : last_end_tag_index + len("</html>")].strip()
 
-def _create_digest_llm_prompt(articles_metadata_list: list[dict]) -> str | None:
-    log.info(f"Creating digest LLM prompt for {len(articles_metadata_list)} articles.")
-    model_string = os.getenv("LITELLM_MODEL_STRING")
-    if not model_string:
-        log.error("LITELLM_MODEL_STRING not found in environment.")
-        return None
-
-    if not articles_metadata_list:
-        log.warning("No article metadata provided for prompt generation.")
-        return None
-
-    try:
-        metadata_for_prompt = [{"title": a.get("title"), "publication_date": a.get("publication_date"), 
-                                "source_domain": a.get("source_domain"), "link": a.get("link")} 
-                               for a in articles_metadata_list]
-        articles_json_string = json.dumps(metadata_for_prompt, indent=2, ensure_ascii=False)
-    except Exception as e:
-        log.error(f"Error preparing article metadata for prompt generation: {e}")
-        return None
-
-    formatted_today = _get_formatted_today_date()
-    instruction = NEWSLETTER_PROMPT_GENERATION_INSTRUCTION_TEMPLATE.format(formatted_today_date=formatted_today)
-    full_meta_prompt = f"{instruction}\n\nJSON Article Metadata:\n```json\n{articles_json_string}\n```"
-    messages = [{"role": "user", "content": full_meta_prompt}]
-
-    completion_kwargs = {"model": model_string, "messages": messages, "temperature": TEMPERATURE}
-    if ENABLE_LLM_THINKING:
-        completion_kwargs["thinking"] = {"type": "enabled", "budget_tokens": LLM_THINKING_BUDGET_TOKENS}
-        log.info(f"LLM thinking enabled with token budget: {LLM_THINKING_BUDGET_TOKENS}")
-
-    try:
-        log.info(f"Requesting optimised prompt from LiteLLM model: {model_string}")
-        response = litellm.completion(**completion_kwargs)
-        if response and response.choices and response.choices[0].message and response.choices[0].message.content:
-            optimised_prompt = response.choices[0].message.content.strip()
-            log.info("Successfully generated optimised prompt.")
-            return optimised_prompt
-        log.warning("No valid content in LiteLLM response for prompt generation.")
-        return None
-    except Exception as e:
-        log.error(f"LiteLLM error during prompt generation: {e}", exc_info=True)
-        return None
-
 def generate_base_html_digest(query_term: str, articles_data_list: list[dict]) -> str | None:
     log.info(f"Generating base HTML digest for query: '{query_term}' with {len(articles_data_list)} articles.")
     model_string = os.getenv("LITELLM_MODEL_STRING")
@@ -131,14 +76,17 @@ def generate_base_html_digest(query_term: str, articles_data_list: list[dict]) -
         log.warning("No articles data provided for HTML digest generation.")
         return None
 
-    optimised_prompt = _create_digest_llm_prompt(articles_data_list)
-    if not optimised_prompt:
-        log.error("Failed to generate optimised prompt, cannot proceed with HTML generation.")
-        return None
-
-    final_user_prompt = optimised_prompt + HTML_FULL_DOCUMENT_ONLY_INSTRUCTION
+    formatted_today = _get_formatted_today_date()
+    final_user_prompt = AEK_NEWSLETTER_HTML_PROMPT.format(formatted_today_date=formatted_today)
+    
     articles_json_content_string = json.dumps(articles_data_list, indent=2, ensure_ascii=False)
-    full_user_content_for_html = f"{final_user_prompt}\n\nAttached JSON Data (articles with full text):\n```json\n{articles_json_content_string}\n```"
+    full_user_content_for_html = (
+        f"{final_user_prompt}\n\n"
+        f"{HTML_FULL_DOCUMENT_ONLY_INSTRUCTION}\n\n"
+        f"--- Attached JSON Data (articles with full text) ---\n"
+        f"```json\n{articles_json_content_string}\n```"
+    )
+    
     messages = [{"role": "user", "content": full_user_content_for_html}]
 
     completion_kwargs = {"model": model_string, "messages": messages, "temperature": TEMPERATURE}
@@ -217,18 +165,7 @@ if __name__ == "__main__":
 
                 log.info(f"Extracted query term for test: {test_query_term}")
 
-                log.info("--- Test Part 1: Generating Optimised Prompt ---")
-                generated_optimised_prompt = _create_digest_llm_prompt(articles_for_digest)
-                if generated_optimised_prompt:
-                    log.info("Optimised prompt generated successfully for test.")
-                    print("\n--- Optimised Prompt (Snippet) ---")
-                    print(generated_optimised_prompt[:500] + "...")
-                    save_text_to_file(generated_optimised_prompt, test_query_term, "optimised_digest_prompt", "txt")
-                else:
-                    log.error("Failed to generate optimised prompt during test.")
-                    print("\n--- Optimised Prompt Generation FAILED ---")
-
-                log.info("--- Test Part 2: Generating Base HTML Digest ---")
+                log.info("--- Generating Base HTML Digest ---")
                 base_html = generate_base_html_digest(test_query_term, articles_for_digest)
                 if base_html:
                     log.info("Base HTML digest generated successfully for test.")

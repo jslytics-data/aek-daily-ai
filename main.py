@@ -35,54 +35,46 @@ def require_api_key(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@app.route("/run-digest", methods=["POST"])
+@app.route("/run-aek-digest", methods=["POST"])
 @require_api_key
-def run_digest_endpoint():
-    request_data = request.get_json()
-    if not request_data:
-        return jsonify({"status": "error", "message": "Invalid JSON payload."}), 400
+def run_aek_digest_endpoint():
+    QUERY_TERM = "ΑΕΚ"
+    LANGUAGE_CODE = "el"
+    LOCATION_CODE = 2300
+    DAYS_TO_LOOK_BACK = int(os.getenv("DAYS_TO_LOOK_BACK", "1"))
 
-    query_term = request_data.get("query_term")
-    language_code = request_data.get("language_code")
-    location_code = request_data.get("location_code")
-
-    if not all([query_term, language_code, location_code]):
-        msg = "Missing one or more required fields: query_term, language_code, location_code."
-        return jsonify({"status": "error", "message": msg}), 400
-
-    days_to_look_back = request_data.get("days_to_look_back", 1)
-    distribution_options = request_data.get("distribution", {})
+    upload_gcs = os.getenv("DISTRIBUTION_GCS_ENABLED", "true").lower() == "true"
+    send_email = os.getenv("DISTRIBUTION_EMAIL_ENABLED", "true").lower() == "true"
+    post_reddit = os.getenv("DISTRIBUTION_REDDIT_ENABLED", "false").lower() == "true"
     
-    upload_gcs = distribution_options.get("gcs", {}).get("enabled", False)
-    send_email = distribution_options.get("email", {}).get("enabled", False)
-    post_reddit = distribution_options.get("reddit", {}).get("enabled", False)
-    
-    recipient_emails = distribution_options.get("email", {}).get("recipients")
-    reddit_subreddit = distribution_options.get("reddit", {}).get("subreddit")
-    reddit_flair_id = distribution_options.get("reddit", {}).get("flair_id")
+    recipient_emails = os.getenv("DISTRIBUTION_EMAIL_RECIPIENTS")
+    reddit_subreddit = os.getenv("DISTRIBUTION_REDDIT_SUBREDDIT")
+    reddit_flair_id = os.getenv("DISTRIBUTION_REDDIT_FLAIR_ID")
+    from_name_template = os.getenv("EMAIL_FROM_NAME_TEMPLATE", "{query_term} Daily")
 
-    log.info(f"Received valid request to run digest for query: '{query_term}'")
+    log.info(f"Received valid request to run digest for query: '{QUERY_TERM}'")
     
     try:
         success = manager.run_full_digest_pipeline(
-            query_term=query_term,
-            days_to_look_back=days_to_look_back,
-            language_code=language_code,
-            location_code=location_code,
-            save_intermediate_files=False, # Set to False for production runs
+            query_term=QUERY_TERM,
+            days_to_look_back=DAYS_TO_LOOK_BACK,
+            language_code=LANGUAGE_CODE,
+            location_code=LOCATION_CODE,
+            save_intermediate_files=False,
             upload_to_gcs_enabled=upload_gcs,
             send_email_enabled=send_email,
             post_to_reddit_enabled=post_reddit,
             recipient_emails_str=recipient_emails,
             reddit_subreddit=reddit_subreddit,
-            reddit_flair_id=reddit_flair_id
+            reddit_flair_id=reddit_flair_id,
+            from_name_template=from_name_template
         )
 
         if success:
-            log.info(f"Pipeline completed successfully for query: '{query_term}'")
+            log.info(f"Pipeline completed successfully for query: '{QUERY_TERM}'")
             return jsonify({"status": "success", "message": "Digest pipeline completed."}), 200
         else:
-            log.error(f"Pipeline failed for query: '{query_term}'")
+            log.error(f"Pipeline failed for query: '{QUERY_TERM}'")
             return jsonify({"status": "error", "message": "Digest pipeline failed during execution."}), 500
 
     except Exception as e:

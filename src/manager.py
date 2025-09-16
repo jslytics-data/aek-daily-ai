@@ -8,6 +8,7 @@ from .content_retrieval import orchestrator as content_orchestrator
 from . import generate_base_digest
 from .format_adapters import generate_email_metas
 from .format_adapters import generate_reddit_markdown as reddit_adapter
+from .format_adapters import generate_improved_email_design
 from .distribution import upload_to_gcs
 from .distribution import send_sendgrid_email
 from .distribution import post_to_reddit
@@ -68,6 +69,18 @@ def run_full_digest_pipeline(
     if save_intermediate_files:
         _save_debug_file(base_html, query_term, "manager_base_digest", "html")
 
+    log.info("Attempting to improve email HTML design with Anthropic model.")
+    improved_html = generate_improved_email_design.improve_html_digest_design(base_html)
+
+    final_email_html = base_html
+    if improved_html:
+        log.info("Successfully improved email HTML design.")
+        final_email_html = improved_html
+        if save_intermediate_files:
+            _save_debug_file(final_email_html, query_term, "manager_improved_email", "html")
+    else:
+        log.warning("Failed to improve email HTML design. Using base version for distribution.")
+
     if upload_to_gcs_enabled:
         gcs_bucket = os.getenv("GCS_BUCKET_NAME")
         gcp_project = os.getenv("GCLOUD_PROJECT")
@@ -76,7 +89,7 @@ def run_full_digest_pipeline(
             sanitized_query = "".join(c for c in query_term if c.isalnum()).lower()
             filename = f"{sanitized_query}_digest_{datetime.now().strftime('%Y%m%d%H%M')}.html"
             dest_name = f"digests/{timestamp}/{filename}"
-            upload_to_gcs.upload_content_to_gcs(base_html, dest_name, gcs_bucket, gcp_project)
+            upload_to_gcs.upload_content_to_gcs(final_email_html, dest_name, gcs_bucket, gcp_project)
         else:
             log.warning("GCS upload enabled, but GCS_BUCKET_NAME or GCLOUD_PROJECT missing")
 
@@ -84,7 +97,7 @@ def run_full_digest_pipeline(
         if not recipient_emails_str:
             log.warning("Email sending enabled, but no recipient emails were provided.")
         else:
-            log.info("Generating dynamic email subject and preview text.")
+            log.info("Generating dynamic email subject and preview text from base content.")
             email_metas = generate_email_metas.generate_email_metadata_from_html(base_html)
 
             if email_metas:
@@ -94,11 +107,11 @@ def run_full_digest_pipeline(
                 
                 from_name = from_name_template.format(query_term=query_term.title()) if from_name_template else f"{query_term.title()} Daily"
                 
-                log.info(f"Proceeding to send email from '{from_name}'")
+                log.info(f"Proceeding to send email from '{from_name}' with improved design.")
                 send_sendgrid_email.send_digest_email(
                     recipient_emails=recipients,
                     subject=subject,
-                    html_content=base_html,
+                    html_content=final_email_html,
                     from_name=from_name,
                     preview_text=preview_text
                 )
@@ -109,6 +122,7 @@ def run_full_digest_pipeline(
         if not reddit_subreddit:
             log.warning("Reddit posting enabled, but no subreddit was provided.")
         else:
+            log.info("Adapting base HTML content to Reddit Markdown.")
             title, markdown = reddit_adapter.adapt_html_for_reddit(base_html)
             if title and markdown:
                 if save_intermediate_files:
@@ -139,7 +153,7 @@ if __name__ == "__main__":
     TEST_RECIPIENTS = os.getenv("TEST_RECIPIENT_EMAILS")
     TEST_SUBREDDIT = "testingground4bots"
     TEST_FLAIR_ID = None
-    TEST_FROM_NAME_TEMPLATE = "{query_term} Today"
+    TEST_FROM_NAME_TEMPLATE = "{query_term} Daily"
 
     success = run_full_digest_pipeline(
         query_term=TEST_QUERY,

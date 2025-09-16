@@ -156,7 +156,7 @@ if __name__ == "__main__":
         log.critical("GEMINI_API_KEY or LITELLM_MODEL_STRING not in .env. Test cannot run.")
     else:
         exports_dir = "exports"
-        base_html_path = _find_latest_file_by_pattern(exports_dir, "base_digest_html_*.html")
+        base_html_path = _find_latest_file_by_pattern(exports_dir, "manager_base_digest_*.html")
 
         if not base_html_path:
             log.error("Could not find latest base HTML file in 'exports/'.")
